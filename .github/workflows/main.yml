@@ -1,0 +1,38 @@
+name: Test
+on: [push]
+jobs:
+  Test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      
+      - name: Install local dependencies
+        run: npm install
+      
+      - name: Run the test and save result
+        run: npm run check > test-result.txt
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: ./test-result.txt
+  
+  Deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-output
+          path: ./
+      
+      - name: Display artifact content
+        run: cat test-result.txt
