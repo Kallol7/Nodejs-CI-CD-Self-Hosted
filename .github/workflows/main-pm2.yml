@@ -57,23 +57,29 @@ jobs:
         if: steps.check-container.outputs.container_exists != 'true'
         run: |
           echo ${{ github.workspace }}
-          docker run -d -it --name node22 -p 3000:3000 -v ${{ github.workspace }}:/node-app -w /node-app --entrypoint sh node:22-alpine
+          docker run -d -it --name node22PM2 -p 3001:3000 -v ${{ github.workspace }}:/node-app -w /node-app --entrypoint sh node:22-alpine
 
       - name: Test Node Setup
         shell: cmd
         run: |
-          docker exec -i node22 node -v
-          docker exec -i node22 npm -v
+          docker exec -i node22PM2 node -v
+          docker exec -i node22PM2 npm -v
       
       - name: Install packages
-        run: docker exec -i node22 npm install
+        run: docker exec -i node22PM2 npm install
+
+      - name: Install pm2
+        run:  docker exec -i node22PM2 npm install pm2 -g && pm2 update
       
-      - name: Start the server # Stop Using: docker stop node22
+      - name: Cleanup
         shell: cmd
-        run: start /b docker exec -i node22 npm start
+        run: docker exec -i node22PM2 pm2 delete node-app || exit /b 0
+      
+      - name: Start Application
+        run: docker exec -i node22PM2 pm2 start "./src/server.js" --name node-app
 
       - name: Final Test
         shell: cmd
         run: |
-          curl http://localhost:3000
-          curl http://localhost:3000
+          curl http://localhost:3001
+          curl http://localhost:3001
