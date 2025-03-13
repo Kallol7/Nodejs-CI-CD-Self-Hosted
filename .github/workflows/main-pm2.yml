@@ -1,4 +1,4 @@
-name: Test
+name: Test with PM2
 on: [push]
 jobs:
   Test:
@@ -41,20 +41,11 @@ jobs:
       - name: Pull Node Image
         run: docker pull node:22-alpine
 
-      - name: Check if container exists
-        id: check-container
-        run: |
-          $containerExists = if (docker ps -a | Select-String "node22") { "true" } else { "false" }
-          echo "container_exists=$containerExists" >> $env:GITHUB_OUTPUT
-
-      - name: Restart existing container
-        if: steps.check-container.outputs.container_exists == 'true'
-        run: |
-          docker stop node22
-          docker start node22
+      - name: Delete old container
+        shell: cmd
+        run: docker rm node22PM2 -f || exit /b 0
 
       - name: Create new container
-        if: steps.check-container.outputs.container_exists != 'true'
         run: |
           echo ${{ github.workspace }}
           docker run -d -it --name node22PM2 -p 3001:3000 -v ${{ github.workspace }}:/node-app -w /node-app --entrypoint sh node:22-alpine
@@ -69,7 +60,9 @@ jobs:
         run: docker exec -i node22PM2 npm install
 
       - name: Install pm2
-        run:  docker exec -i node22PM2 npm install pm2 -g && pm2 update
+        run:  | 
+          docker exec -i node22PM2 npm install pm2 -g
+          docker exec -i node22PM2 pm2 update
       
       - name: Cleanup
         shell: cmd
@@ -77,6 +70,10 @@ jobs:
       
       - name: Start Application
         run: docker exec -i node22PM2 pm2 start "./src/server.js" --name node-app
+      
+      - name: Persist pm2 configuration
+        run: |
+          docker exec -i node22PM2 pm2 save
 
       - name: Final Test
         shell: cmd
